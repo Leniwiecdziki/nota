@@ -1,0 +1,23 @@
+[package]
+name = "nota"
+version = "0.1.0"
+edition = "2021"
+
+[build]
+rustflags=["-C prefer-dynamic"]
+
+[profile.release]
+strip = true
+debug = false
+
+[source.crates-io]
+replace-with = "vendored-sources"
+
+[source.vendored-sources]
+directory = "vendor"
+
+[dependencies]
+crossterm = "*"
+
+[dependencies.carrot_libs]
+path = "../carrot-libs"
