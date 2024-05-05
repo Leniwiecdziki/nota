@@ -4,6 +4,7 @@ use std::process;
 use std::io::{self, Read};
 use std::fs;
 use std::str;
+use std::collections::hash_map::HashMap;
 
 // Type used for storing information about each file line
 #[derive(Debug)]
@@ -13,7 +14,7 @@ struct Line {
     // Number of parts that were created to fit in terminal
     parts_count: usize,
     // Parts!
-    line_parts: Vec<Vec<String>>,
+    line_parts: Vec<HashMap<usize, String>>,
 }
 
 fn main() {
@@ -62,44 +63,41 @@ fn prepare(entire_file:String) {
     // It contains the Line structs created below
     let mut lines_data = Vec::new();
 
-    // Save file lines separately to a list
-    // This contains parts of line shortened to fit into terminal
-    // Example:
-    // ["exa", "mpl", "e h", "ere"]
-    let mut line_parts = Vec::new();
-    // This thing is a list which stores another list of shortened file lines
-    // Example:
-    // [["exa", "mpl", "e h", "ere"], ["ano", "the", "r l", "ine"]]
-    let mut lines = Vec::new();
-
     // Cut line into parts if they are too long for the terminal window
-    let mut idx = 1;
+    let mut line_index = 1;
     for line in entire_file.lines() {
+        // This thing is a list which stores list of line parts with their ID
+        let mut lines = Vec::new();
+
+        // Just the parts extracted from large line
+        let mut line_parts = HashMap::new();
+
+        let mut part_index = 0;
         // If the line is longer than terminal window, save it's chunks separately
         if line.chars().count() > terminal_width {
             let subs = line.as_bytes().chunks(terminal_width).map(str::from_utf8).collect::<Result<Vec<&str>, _>>().unwrap();
             for s in subs {
-                line_parts.push(s.to_string());
+                line_parts.insert(line_index+part_index, s.to_string());
+                part_index+=1;
             }
         }
         // Otherwise, just throw entire line to line_parts
         else {
-            line_parts.push(line.to_string());
+            line_parts.insert(line_index+part_index, line.to_string());
         }
+        lines.push(line_parts.clone());
 
-        idx+=1;
+        // Summarize all that we know about the current line
+        let about_this_line = Line {
+            line_number: line_index,
+            parts_count: line_parts.len(),
+            line_parts: lines,
+        };
+        // Finally, add all the required metadata to the "lines_data" list
+        lines_data.push(about_this_line);
+
+        line_index+=1;
     }
-
-    lines.push(line_parts.clone());
-
-    // Summarize all that we know
-    let about_this_line = Line {
-        line_number: idx,
-        parts_count: line_parts.len(),
-        line_parts: lines.clone(),
-    };
-    // Finally, add all the required metadata to the "lines_data" list
-    lines_data.push(about_this_line);
 
     editor(lines_data);
 }
@@ -109,16 +107,18 @@ fn editor(lines_data:Vec<Line>) {
     let terminal_width = terminal::size().unwrap().0 as usize;
     let terminal_height = terminal::size().unwrap().1 as usize;
 
+    dbg!(&lines_data);
+
     terminal::enable_raw_mode().unwrap();
     execute!(io::stdout(), terminal::EnterAlternateScreen).unwrap();
     execute!(io::stdout(), cursor::MoveTo(0,0)).unwrap();
     execute!(io::stdout(), terminal::SetTitle("Nota")).unwrap();
 
-    for data in lines_data {
-        for line in data.line_parts {
-            for part in line {
-                println!("{part}\r");
-            }
+    let mut idx = 1;
+    for line in &lines_data {
+        for part in &line.line_parts {
+            println!("{}\r", part.get(&idx).unwrap() );
+            idx+=1;
         }
     }
 
