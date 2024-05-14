@@ -58,7 +58,7 @@ fn main() {
 fn prepare(entire_file:String) {
     // Collect some terminal info
     let terminal_width = terminal::size().unwrap().0 as usize;
-    let terminal_height = terminal::size().unwrap().1 as usize;
+    //let terminal_height = terminal::size().unwrap().1 as usize;
 
     // It contains the Line structs created below
     let mut lines_data = Vec::new();
@@ -114,13 +114,8 @@ fn editor(lines_data:Vec<Line>) {
     execute!(io::stdout(), cursor::MoveTo(0,0)).unwrap();
     execute!(io::stdout(), terminal::SetTitle("Nota")).unwrap();
 
-    let mut idx = 1;
-    for line in &lines_data {
-        for part in &line.line_parts {
-            println!("{}\r", part.get(&idx).unwrap() );
-            idx+=1;
-        }
-    }
+    let mut start_from_line = 1;
+    printlines(start_from_line, &lines_data);
 
     execute!(io::stdout(), cursor::MoveTo(0,0)).unwrap();
 
@@ -136,16 +131,24 @@ fn editor(lines_data:Vec<Line>) {
             "UP" => {
                 if cury > 0 {
                     cury-=1;
+                } else {
+                    if start_from_line > 1 {
+                        start_from_line -= 1;
+                        printlines(start_from_line, &lines_data);
+                    }
                 }
             },
             "DOWN" => {
                 if cury < terminal_height-2 {
                     cury+=1;
+                } else {
+                    start_from_line += 1;
+                    printlines(start_from_line, &lines_data);
                 }
             },
             "LEFT" => {
                 if curx > 0 {
-                    curx+=1;
+                    curx-=1;
                 }
             },
             "RIGHT" => {
@@ -160,4 +163,23 @@ fn editor(lines_data:Vec<Line>) {
 
     terminal::disable_raw_mode().unwrap();
     execute!(io::stdout(), terminal::LeaveAlternateScreen).unwrap();
+}
+
+fn printlines(start:usize, lines:&Vec<Line>) {
+    let terminal_height = terminal::size().unwrap().1 as usize;
+    let mut idx = start;
+    let end = terminal_height+start;
+    execute!(io::stdout(), terminal::Clear(terminal::ClearType::All)).unwrap();
+
+    for line in &lines[start..] {
+        for parts in &line.line_parts {
+            for part in parts {
+                if idx < end {
+                    println!("{}\r", part.1);
+                    idx+=1;
+                }
+            }
+        }
+    }
+
 }
